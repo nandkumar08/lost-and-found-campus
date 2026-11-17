@@ -7,6 +7,7 @@ Managed MySQL connection pool built on PyMySQL.
   user input.
 """
 from __future__ import annotations
+import ssl
 
 import logging
 import queue
@@ -40,6 +41,7 @@ class ConnectionPool:
             user=settings.DB_USER,
             password=settings.DB_PASSWORD,
             database=settings.DB_NAME,
+            ssl=ssl.create_default_context(),
             charset="utf8mb4",
             cursorclass=DictCursor,
             autocommit=False,
