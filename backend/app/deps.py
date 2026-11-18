@@ -56,22 +56,26 @@ def _forbidden(message: str = "You do not have permission to perform this action
 
 def load_user(user_id: int) -> Optional[Dict[str, Any]]:
     row = pool.query_one(
-        """
-        SELECT u.*, r.code AS role_code, r.name AS role_name,
-               uni.name AS university_name, uni.code AS university_code,
-               uni.status AS university_status,
-               uni.primary_color, uni.accent_color, uni.logo_path,
-               v.status AS verification_status
-        FROM users u
-        JOIN roles r ON r.id = u.role_id
-        JOIN universities uni ON uni.id = u.university_id
-        LEFT JOIN user_verifications v ON v.id = (
-            SELECT MAX(v2.id) FROM user_verifications v2 WHERE v2.user_id = u.id
-        )
-        WHERE u.id = %s AND u.deleted_at IS NULL
-        """,
-        (user_id,),
-    )
+    """
+    SELECT u.*, r.code AS role_code, r.name AS role_name,
+           uni.name AS university_name, uni.code AS university_code,
+           uni.status AS university_status,
+           uni.primary_color, uni.accent_color, uni.logo_path,
+           v.status AS verification_status
+    FROM users u
+    JOIN roles r ON r.id = u.role_id
+    JOIN universities uni ON uni.id = u.university_id
+    LEFT JOIN (
+        SELECT user_id, MAX(id) AS latest_id
+        FROM user_verifications
+        GROUP BY user_id
+    ) latest_v ON latest_v.user_id = u.id
+    LEFT JOIN user_verifications v ON v.id = latest_v.latest_id
+    WHERE u.id = %s AND u.deleted_at IS NULL
+    """,
+    (user_id,),
+)
+
     return row
 
 
