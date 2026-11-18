@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from pathlib import Path
@@ -110,7 +111,26 @@ def health() -> Dict[str, Any]:
         "version": "1.0.0",
     }
 
+@app.get("/api/health/time-debug", tags=["system"])
+def time_debug():
+    db = pool.query_one("""
+        SELECT
+            NOW() AS db_now,
+            UTC_TIMESTAMP() AS db_utc,
+            @@session.time_zone AS session_timezone,
+            @@global.time_zone AS global_timezone
+    """)
 
+    return {
+        "server_local": datetime.now().isoformat(),
+        "server_utc": datetime.now(timezone.utc).isoformat(),
+        "database": {
+            "now": str(db["db_now"]) if db else None,
+            "utc": str(db["db_utc"]) if db else None,
+            "session_timezone": db["session_timezone"] if db else None,
+            "global_timezone": db["global_timezone"] if db else None,
+        },
+    }
 @app.get("/api/config/public", tags=["system"])
 def public_config() -> Dict[str, Any]:
     """Non-sensitive bootstrapping data for the React client."""
