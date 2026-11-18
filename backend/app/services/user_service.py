@@ -70,12 +70,22 @@ def list_users(
 
     clause = " AND ".join(where)
     total = pool.scalar(
-        f"SELECT COUNT(*) AS c FROM users u JOIN roles r ON r.id=u.role_id "
-        f"LEFT JOIN user_verifications v ON v.id=(SELECT MAX(v2.id) FROM user_verifications v2 WHERE v2.user_id=u.id) "
-        f"WHERE {clause}",
-        tuple(params),
-        0,
-    )
+    f"""
+    SELECT COUNT(*) AS c
+    FROM users u
+    JOIN roles r ON r.id = u.role_id
+    LEFT JOIN (
+        SELECT user_id, MAX(id) AS latest_id
+        FROM user_verifications
+        GROUP BY user_id
+    ) latest_v ON latest_v.user_id = u.id
+    LEFT JOIN user_verifications v ON v.id = latest_v.latest_id
+    WHERE {clause}
+    """,
+    tuple(params),
+    0,
+)
+
     rows = pool.query_all(
         USER_SELECT + f" WHERE {clause} ORDER BY u.created_at DESC LIMIT %s OFFSET %s",
         tuple(params + [pg["page_size"], pg["offset"]]),
