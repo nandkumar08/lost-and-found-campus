@@ -5,6 +5,10 @@
  * - supports multipart uploads
  */
 const TOKEN_KEY = 'lfc.access_token';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://lost-and-found-campus-t7ms.onrender.com'
+).replace(/\/+$/, '');
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -43,7 +47,7 @@ async function request(method, path, { body, params, isForm = false, signal } = 
 
   let response;
   try {
-    response = await fetch(`/api${path}${buildQuery(params)}`, {
+    response = await fetch(`${API_BASE_URL}/api${path}${buildQuery(params)}`, {
       method,
       headers,
       body: isForm ? body : body !== undefined ? JSON.stringify(body) : undefined,
