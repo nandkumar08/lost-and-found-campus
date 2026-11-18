@@ -1,17 +1,52 @@
+
+const TIME_ZONE = 'Asia/Kolkata';
+
+function parseDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  let input = String(value).trim().replace(' ', 'T');
+
+  // Database timestamps without timezone are UTC.
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(input) &&
+    !/(Z|[+-]\d{2}:\d{2})$/i.test(input)
+  ) {
+    input += 'Z';
+  }
+
+  const date = new Date(input);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const dateOptions = {
+  timeZone: TIME_ZONE,
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+};
+
 export function formatDate(value) {
   if (!value) return '—';
-  const date = new Date(String(value).replace(' ', 'T'));
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const date = parseDate(value);
+  if (!date) return String(value);
+
+  return date.toLocaleDateString('en-GB', dateOptions);
 }
 
 export function formatDateTime(value) {
   if (!value) return '—';
-  const date = new Date(String(value).replace(' ', 'T'));
-  if (Number.isNaN(date.getTime())) return String(value);
-  return `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${date.toLocaleTimeString(
+  const date = parseDate(value);
+  if (!date) return String(value);
+
+  return `${date.toLocaleDateString('en-GB', dateOptions)}, ${date.toLocaleTimeString(
     'en-GB',
-    { hour: '2-digit', minute: '2-digit' }
+    {
+      timeZone: TIME_ZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }
   )}`;
 }
 
@@ -22,13 +57,17 @@ export function formatTime(value) {
 
 export function relativeTime(value) {
   if (!value) return '';
-  const date = new Date(String(value).replace(' ', 'T'));
+  const date = parseDate(value);
+  if (!date) return '';
+
   const diff = (Date.now() - date.getTime()) / 1000;
-  if (Number.isNaN(diff)) return '';
+
+  if (diff < 0) return 'just now';
   if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.round(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.round(diff / 86400)}d ago`;
+
   return formatDate(value);
 }
 
@@ -45,31 +84,48 @@ export function fileSize(bytes) {
 }
 
 export function toLocalInputValue(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(
-    date.getMinutes()
-  )}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((p) => p.type === type)?.value || '00';
+
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
 export function todayISO() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const get = (type) => parts.find((p) => p.type === type)?.value || '00';
+
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 export function confidenceLabel(confidence) {
-  return { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' }[confidence] || confidence;
+  return {
+    high: 'High confidence',
+    medium: 'Medium confidence',
+    low: 'Low confidence',
+  }[confidence] || confidence;
 }
 
-/**
- * First name for greetings — strips academic/professional honorifics so
- * "Dr. Vikram Rao" greets as "Vikram" and never as "Dr.".
- */
 export function firstName(fullName) {
   const parts = String(fullName || '')
     .replace(/\b(dr|prof|mr|mrs|ms|miss|smt|sri)\.?\b/gi, '')
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+
   return parts.length ? parts[0] : 'there';
 }
