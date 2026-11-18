@@ -15,9 +15,12 @@ USER_SELECT = """
            v.status AS verification_status
     FROM users u
     JOIN roles r ON r.id = u.role_id
-    LEFT JOIN user_verifications v ON v.id = (
-        SELECT MAX(v2.id) FROM user_verifications v2 WHERE v2.user_id = u.id
-    )
+    LEFT JOIN (
+    SELECT user_id, MAX(id) AS latest_id
+    FROM user_verifications
+    GROUP BY user_id
+) latest_v ON latest_v.user_id = u.id
+LEFT JOIN user_verifications v ON v.id = latest_v.latest_id
 """
 
 
