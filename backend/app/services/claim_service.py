@@ -101,9 +101,12 @@ CLAIM_SELECT = """
     LEFT JOIN reports lr ON lr.id = c.lost_report_id
     JOIN users cu ON cu.id = c.claimant_user_id
     JOIN roles rr ON rr.id = cu.role_id
-    LEFT JOIN user_verifications cv ON cv.id = (
-        SELECT MAX(v2.id) FROM user_verifications v2 WHERE v2.user_id = cu.id
-    )
+    LEFT JOIN (
+    SELECT user_id, MAX(id) AS latest_id
+    FROM user_verifications
+    GROUP BY user_id
+) latest_cv ON latest_cv.user_id = cu.id
+LEFT JOIN user_verifications cv ON cv.id = latest_cv.latest_id
     LEFT JOIN users rv ON rv.id = c.reviewed_by
     LEFT JOIN returns ret ON ret.claim_id = c.id AND ret.status <> 'cancelled'
     LEFT JOIN locations loc ON loc.id = ret.collection_location_id
